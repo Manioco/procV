@@ -62,7 +62,7 @@ def find_tables(path=CWD, formats=FORMATS):
                 
 
     # Return tables
-    return create_dfs(saldo_tables, contato_tables)
+    return saldo_tables, contato_tables
 
 
 def create_dfs(saldos:list[pd.DataFrame], contatos:list[pd.DataFrame]):
@@ -91,7 +91,7 @@ def create_dfs(saldos:list[pd.DataFrame], contatos:list[pd.DataFrame]):
 
 # print(find_tables())
 
-def drop_duplicates(df_list:list[pd.DataFrame],
+def table_drop_duplicates(df_list:list[pd.DataFrame],
                     keep="first",
                     ignore_index=True,
                     subset=["cpf"],
@@ -118,9 +118,11 @@ def table_dropna(df_list:list[pd.DataFrame], how="any", axis=0):
 
 # Function to convert non-numeric values to NaN and keep numeric values
 def to_numeric_with_commas(value):
+    value = str(value)
     try:
         # Try converting the value to float
         float(value.replace('.', '').replace(',', '.'))
+        print(value)
         return value
     except (ValueError, AttributeError):
         # If conversion fails, return NaN
@@ -130,7 +132,7 @@ def to_numeric_with_commas(value):
 def fix_tables(saldos, contatos):
     """Fix tables"""
     v = 5
-    p = False
+    p = True
 
     # if p:
     print("\nSALDO ORIGINAL")
@@ -150,7 +152,7 @@ def fix_tables(saldos, contatos):
         print("Saldo foot:")
         print(saldos.tail(v))
     
-    saldos, contatos = drop_duplicates([saldos, contatos])
+    saldos, contatos = table_drop_duplicates([saldos, contatos])
 
     if p:
         print("\nSALDO DUPLICATES")
@@ -160,7 +162,11 @@ def fix_tables(saldos, contatos):
         print("Saldo foot:")
         print(saldos.tail(v))
     
+    print("\n LIBERADO")
+    print(saldos["liberado"].head())
     saldos['liberado'] = saldos['liberado'].apply(to_numeric_with_commas)
+    print(saldos["liberado"].head())
+    print("\n")
     saldos = saldos.dropna(subset=["liberado"])
 
     if p:
@@ -177,13 +183,19 @@ def fix_tables(saldos, contatos):
 def procv(saldos:pd.DataFrame, contatos:pd.DataFrame):
     """Apply procv to the tables"""
 
+    # Columns in the desired order
     match_cols = ["cpf", "nome", "telefone", "saldo", "liberado"]
-    match = pd.DataFrame(columns=match_cols)
 
-    # Fix tables
-    saldos, contatos = fix_tables(saldos, contatos)
+    # Print the saldos and contatos DataFrames before merging
+    print("\nSaldos DataFrame PROCV:")
+    print(saldos.head())
+    print("Contatos DataFrame:")
+    print(contatos.head())
+    print("\n")
+    # Merge DataFrames based on the "cpf" column and select columns in the specified order
+    match = pd.merge(saldos, contatos, on="cpf", how="left")[match_cols]
+    match = match.drop_duplicates(keep="first",ignore_index=True,subset=["cpf"],inplace=False)
 
-    match = pd.concat([saldos, contatos], axis=1, verify_integrity=True)
     """
     # Saldo: cpf, saldo, liberado
     s_cpf = saldos["cpf"]
@@ -245,15 +257,40 @@ def create_result(match:pd.DataFrame, folder:str):
 def main():
     print("Starting...")
     print("\n")
-    saldos, contatos = find_tables()
+    saldos_l, contatos_l = find_tables()
     print("\n")
-    if not len(saldos) or not len(contatos):
+    if not len(saldos_l) or not len(contatos_l):
         print("No tables found")
         return
     
+    saldos, contatos = create_dfs(saldos_l, contatos_l)
+    # Print the saldos and contatos DataFrames before merging
+    # Fix tables
+    saldos, contatos = fix_tables(saldos, contatos)
+
+    print("\nSaldos DataFrame FIX:")
+    print(saldos.head())
+    print("Contatos DataFrame:")
+    print(contatos.head())
+    print("\n")
     match = procv(saldos, contatos)
     current_folder = create_folders()
-    move_tables([saldos, contatos], current_folder)
+    
+    tables_found = []
+    for f in os.listdir(CWD):
+        try:
+            # Split file name and format
+            f_name, f_format = f.split(".")
+        except ValueError:
+            continue
+        
+        # Check if file is a table
+        if not f_format in FORMATS:
+            continue
+        else:
+            tables_found.append(f)
+
+    move_tables(tables_found, current_folder)
     create_result(match, RESULTS)
 
 
