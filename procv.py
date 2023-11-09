@@ -89,30 +89,124 @@ def create_dfs(saldos:list[pd.DataFrame], contatos:list[pd.DataFrame]):
         # concat
         contatos_df = pd.concat([contatos_df, cpf, telefone, nome], axis=1)
 
+    # Create file name
+    f_name_s = f"S {DATE} {HOUR}.xlsx"
+    f_name_c = f"C {DATE} {HOUR}.xlsx"
+
+    # Write table
+    saldos_df.to_excel(f_name_s, index=False)
+    contatos_df.to_excel(f_name_c, index=False)
+
+    
+    # print(type(saldos_df), type(contatos_df))
     return saldos_df, contatos_df
 
 # print(find_tables())
 
+def drop_duplicates(df_list:list[pd.DataFrame],
+                    keep="first",
+                    ignore_index=True,
+                    subset=["cpf"],
+                    inplace=False,
+                    ):
+    """Drop duplicates from a list of DataFrames"""
+    for df in df_list:
+        df = df.drop_duplicates(subset=subset,
+                                keep=keep,
+                                ignore_index=ignore_index,
+                                inplace=inplace,
+                                )
+    
+    return df_list
 
-def procv(saldo:pd.DataFrame, contato:pd.DataFrame):
+
+def table_dropna(df_list:list[pd.DataFrame], how="any", axis=0):
+    """Drop NaN values from a list of DataFrames"""
+    for df in df_list:
+        df = df.dropna(how=how, axis=axis)
+    
+    return df_list
+
+
+# Function to convert non-numeric values to NaN and keep numeric values
+def to_numeric_with_commas(value):
+    try:
+        # Try converting the value to float
+        float(value.replace('.', '').replace(',', '.'))
+        return value
+    except (ValueError, AttributeError):
+        # If conversion fails, return NaN
+        return pd.NA
+    
+
+def fix_tables(saldos, contatos):
+    """Fix tables"""
+    v = 5
+    p = False
+
+    # if p:
+    print("\nSALDO ORIGINAL")
+    print(len(saldos["cpf"]))
+    print("Saldo head:")
+    print(saldos.head(v))
+    print("Saldo foot:")
+    print(saldos.tail(v))
+
+    saldos, contatos = table_dropna([saldos, contatos])
+
+    if p:
+        print("\nSALDO DROPNA")
+        print(len(saldos["cpf"]))
+        print("Saldo head:")
+        print(saldos.head(v))
+        print("Saldo foot:")
+        print(saldos.tail(v))
+    
+    saldos, contatos = drop_duplicates([saldos, contatos])
+
+    if p:
+        print("\nSALDO DUPLICATES")
+        print(len(saldos["cpf"]))
+        print("Saldo head:")
+        print(saldos.head(v))
+        print("Saldo foot:")
+        print(saldos.tail(v))
+    
+    saldos['liberado'] = saldos['liberado'].apply(to_numeric_with_commas)
+    saldos = saldos.dropna(subset=["liberado"])
+
+    if p:
+        print("\nSALDO APPLY LIBERADO")
+        print(len(saldos["cpf"]))
+        print("Saldo head:")
+        print(saldos.head(v))
+        print("Saldo foot:")
+        print(saldos.tail(v))
+
+    return saldos, contatos
+
+
+def procv(saldos:pd.DataFrame, contatos:pd.DataFrame):
     """Apply procv to the tables"""
 
     match_cols = ["cpf", "nome", "telefone", "saldo", "liberado"]
     match = pd.DataFrame(columns=match_cols)
 
-    # Merge tables
-    match = pd.merge(saldo, contato, on="cpf", how="left")
+    # Fix tables
+    saldos, contatos = fix_tables(saldos, contatos)
 
-    # Drop duplicates
-    match.drop_duplicates(subset="cpf", keep="first", inplace=True)
+    match = pd.concat([saldos, contatos], axis=1, verify_integrity=True)
+    """
+    # Saldo: cpf, saldo, liberado
+    s_cpf = saldos["cpf"]
+    s_saldo = saldos["saldo"]
+    s_liberado = saldos["liberado"]
 
-    # Drop columns
-    match.drop(columns=["Nome_x", "Nome_y"], inplace=True)
-
-    # Rename columns
-    match.rename(columns={"cpf":"cpf", "saldo":"saldo", "telefone":"telefone"}, inplace=True)
-
-    # Return merged table
+    # Contato: cpf, telefone, nome
+    c_cpf = contatos["cpf"]
+    c_telefone = contatos["telefone"]
+    c_nome = contatos["nome"]
+    """
     return match
 
 
@@ -156,14 +250,8 @@ def create_result(match:pd.DataFrame, folder:str):
     # Create file path
     f_path = os.path.join(folder, f_name)
 
-    # Create excel writer
-    writer = pd.ExcelWriter(f_path)
-
     # Write table
-    match.to_excel(writer, index=False)
-
-    # Save file
-    writer.save()
+    match.to_excel(f_path, index=False)
 
 
 def main():
