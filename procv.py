@@ -3,6 +3,9 @@ import time
 import pandas as pd
 
 
+# saldo_cols = ["cpf", "saldo", "liberado"]
+# contato_cols = ["cpf", "telefone", "nome"]
+
 # Set global static variables
 DATE = time.strftime('%d %m %Y')
 HOUR = time.strftime('%H %M %S')
@@ -122,7 +125,7 @@ def to_numeric_with_commas(value):
     try:
         # Try converting the value to float
         float(value.replace('.', '').replace(',', '.'))
-        print(value)
+        # print(value)
         return value
     except (ValueError, AttributeError):
         # If conversion fails, return NaN
@@ -132,7 +135,7 @@ def to_numeric_with_commas(value):
 def fix_tables(saldos, contatos):
     """Fix tables"""
     v = 5
-    p = True
+    p = False # Print tables in the process of fixing
 
     # if p:
     print("\nSALDO ORIGINAL")
@@ -162,11 +165,11 @@ def fix_tables(saldos, contatos):
         print("Saldo foot:")
         print(saldos.tail(v))
     
-    print("\n LIBERADO")
-    print(saldos["liberado"].head())
+    # print("\n LIBERADO")
+    # print(saldos["liberado"].head())
     saldos['liberado'] = saldos['liberado'].apply(to_numeric_with_commas)
-    print(saldos["liberado"].head())
-    print("\n")
+    # print(saldos["liberado"].head())
+    # print("\n")
     saldos = saldos.dropna(subset=["liberado"])
 
     if p:
@@ -252,6 +255,13 @@ def create_result(match:pd.DataFrame, folder:str):
 
     # Write table
     match.to_excel(f_path, index=False)
+
+    print("\nRESULTADO:")
+    print(match.head(7))
+    print("...          ....            ....")
+    print(match.tail(7))
+    print("\n")
+
 
 
 def main():
