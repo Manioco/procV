@@ -72,32 +72,20 @@ def create_dfs(saldos:list[pd.DataFrame], contatos:list[pd.DataFrame]):
     contatos_df = pd.DataFrame(columns=contato_cols)
     
     for s in saldos:
-        # Find each column
-        cpf = s["cpf"]
-        saldo = s["saldo"]
-        nome = s["liberado"]
-
-        # concat
-        saldos_df = pd.concat([saldos_df, cpf, saldo, nome], axis=1)
-    
+        # Concatenate the entire DataFrame along columns
+        saldos_df = pd.concat([saldos_df, s], axis=0, ignore_index=True)
     for c in contatos:
-        # Find each column
-        cpf = c["cpf"]
-        telefone = c["telefone"]
-        nome = c["nome"]
+        # Concatenate the entire DataFrame along columns
+        contatos_df = pd.concat([contatos_df, c], axis=0, ignore_index=True)
 
-        # concat
-        contatos_df = pd.concat([contatos_df, cpf, telefone, nome], axis=1)
-
+    """
     # Create file name
     f_name_s = f"S {DATE} {HOUR}.xlsx"
     f_name_c = f"C {DATE} {HOUR}.xlsx"
-
     # Write table
     saldos_df.to_excel(f_name_s, index=False)
     contatos_df.to_excel(f_name_c, index=False)
-
-    
+    """
     # print(type(saldos_df), type(contatos_df))
     return saldos_df, contatos_df
 
